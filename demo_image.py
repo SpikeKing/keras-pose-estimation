@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -- coding: utf-8 --
+
 import os
 import sys
 import argparse
@@ -9,31 +12,31 @@ import util
 from config_reader import config_reader
 from scipy.ndimage.filters import gaussian_filter
 
+from root_dir import DATA_DIR, MODEL_KERAS
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from model.cmu_model import get_testing_model
 
-
 # find connection in the specified sequence, center 29 is in the position 15
-limbSeq = [[2, 3], [2, 6], [3, 4], [4, 5], [6, 7], [7, 8], [2, 9], [9, 10], \
-           [10, 11], [2, 12], [12, 13], [13, 14], [2, 1], [1, 15], [15, 17], \
+limbSeq = [[2, 3], [2, 6], [3, 4], [4, 5], [6, 7], [7, 8], [2, 9], [9, 10],
+           [10, 11], [2, 12], [12, 13], [13, 14], [2, 1], [1, 15], [15, 17],
            [1, 16], [16, 18], [3, 17], [6, 18]]
 
 # the middle joints heatmap correpondence
-mapIdx = [[31, 32], [39, 40], [33, 34], [35, 36], [41, 42], [43, 44], [19, 20], [21, 22], \
-          [23, 24], [25, 26], [27, 28], [29, 30], [47, 48], [49, 50], [53, 54], [51, 52], \
+mapIdx = [[31, 32], [39, 40], [33, 34], [35, 36], [41, 42], [43, 44], [19, 20], [21, 22],
+          [23, 24], [25, 26], [27, 28], [29, 30], [47, 48], [49, 50], [53, 54], [51, 52],
           [55, 56], [37, 38], [45, 46]]
 
 # visualize
 colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0],
-          [0, 255, 0], \
+          [0, 255, 0],
           [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255],
-          [85, 0, 255], \
+          [85, 0, 255],
           [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
 
 
-def process (input_image, params, model_params):
-
+def process(input_image, params, model_params):
     oriImg = cv2.imread(input_image)  # B,G,R order
     multiplier = [x * model_params['boxsize'] / oriImg.shape[0] for x in params['scale_search']]
 
@@ -47,7 +50,8 @@ def process (input_image, params, model_params):
         imageToTest_padded, pad = util.padRightDownCorner(imageToTest, model_params['stride'],
                                                           model_params['padValue'])
 
-        input_img = np.transpose(np.float32(imageToTest_padded[:,:,:,np.newaxis]), (3,0,1,2)) # required shape (1, width, height, channels)
+        input_img = np.transpose(np.float32(imageToTest_padded[:, :, :, np.newaxis]),
+                                 (3, 0, 1, 2))  # required shape (1, width, height, channels)
 
         output_blobs = model.predict(input_img)
 
@@ -117,7 +121,7 @@ def process (input_image, params, model_params):
                     vec = np.divide(vec, norm)
 
                     startend = list(zip(np.linspace(candA[i][0], candB[j][0], num=mid_num), \
-                                   np.linspace(candA[i][1], candB[j][1], num=mid_num)))
+                                        np.linspace(candA[i][1], candB[j][1], num=mid_num)))
 
                     vec_x = np.array(
                         [score_mid[int(round(startend[I][1])), int(round(startend[I][0])), 0] \
@@ -233,15 +237,19 @@ def process (input_image, params, model_params):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--image', type=str, required=True, help='input image')
-    parser.add_argument('--output', type=str, default='result.png', help='output image')
-    parser.add_argument('--model', type=str, default='model/keras/model.h5', help='path to the weights file')
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--image', type=str, required=True, help='input image')
+    # parser.add_argument('--output', type=str, default='result.png', help='output image')
+    # parser.add_argument('--model', type=str, default='model/keras/model.h5', help='path to the weights file')
+    #
+    # args = parser.parse_args()
+    # input_image = args.image
+    # output = args.output
+    # keras_weights_file = args.model
 
-    args = parser.parse_args()
-    input_image = args.image
-    output = args.output
-    keras_weights_file = args.model
+    input_image = os.path.join(DATA_DIR, 'test.jpg')
+    output = os.path.join(DATA_DIR, 'result.jpg')
+    keras_weights_file = os.path.join(MODEL_KERAS, 'model.h5')
 
     tic = time.time()
     print('start processing...')
@@ -250,8 +258,9 @@ if __name__ == '__main__':
 
     # authors of original model don't use
     # vgg normalization (subtracting mean) on input images
-    model = get_testing_model()
-    model.load_weights(keras_weights_file)
+    model = get_testing_model()  # 获取网络
+    model.summary()
+    model.load_weights(keras_weights_file)  # 加载模型
 
     # load config
     params, model_params = config_reader()
@@ -260,11 +269,10 @@ if __name__ == '__main__':
     canvas = process(input_image, params, model_params)
 
     toc = time.time()
-    print ('processing time is %.5f' % (toc - tic))
+    print('processing time is %.5f' % (toc - tic))
 
+    cv2.imshow('output', output)
+    cv2.waitKey()
     cv2.imwrite(output, canvas)
 
     cv2.destroyAllWindows()
-
-
-
